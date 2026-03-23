@@ -1,28 +1,50 @@
 #!/bin/bash
 
-echo "📦 Установка Python 3.11..."
+echo "========================================="
+echo "📦 Установка Python 3.11 и зависимостей"
+echo "========================================="
 
-# Скачиваем и устанавливаем Python 3.11
-wget https://www.python.org/ftp/python/3.11.11/Python-3.11.11.tgz
-tar -xf Python-3.11.11.tgz
-cd Python-3.11.11
-./configure --enable-optimizations --prefix=/opt/python311
-make -j$(nproc)
-make install
-cd ..
+# Создаем директорию для Python
+mkdir -p /opt/python311
 
-# Используем новый Python
+# Проверяем, установлен ли Python 3.11
+if [ ! -f /opt/python311/bin/python ]; then
+    echo "🐍 Устанавливаю Python 3.11..."
+    cd /tmp
+    wget -q https://www.python.org/ftp/python/3.11.11/Python-3.11.11.tgz
+    tar -xf Python-3.11.11.tgz
+    cd Python-3.11.11
+    ./configure --prefix=/opt/python311 --enable-optimizations
+    make -j$(nproc)
+    make install
+    cd /
+    rm -rf /tmp/Python-3.11.11*
+    echo "✅ Python 3.11 установлен"
+else
+    echo "✅ Python 3.11 уже установлен"
+fi
+
+# Настраиваем PATH
 export PATH=/opt/python311/bin:$PATH
 export PYTHONPATH=/opt/python311/lib/python3.11/site-packages
 
 # Проверяем версию
-python --version
+echo "🐍 Использую Python:"
+/opt/python311/bin/python --version
 
 # Устанавливаем pip
+echo "📦 Устанавливаю pip..."
 /opt/python311/bin/python -m ensurepip --upgrade
 /opt/python311/bin/python -m pip install --upgrade pip
 
 # Устанавливаем зависимости
+echo "📚 Устанавливаю зависимости из requirements.txt..."
 /opt/python311/bin/python -m pip install -r requirements.txt
 
-echo "✅ Установка завершена"
+# Проверяем установку
+echo "✅ Проверка установки:"
+/opt/python311/bin/python -c "import telegram; print(f'python-telegram-bot {telegram.__version__} установлен')"
+
+echo "========================================="
+echo "✅ Готово!"
+echo "========================================="
