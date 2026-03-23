@@ -1,0 +1,2 @@
+# botchpch
+CHPC Bot
