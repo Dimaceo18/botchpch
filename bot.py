@@ -6,9 +6,10 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler
 
+# Настройка подробного логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.DEBUG  # Меняем INFO на DEBUG для деталей
 )
 logger = logging.getLogger(__name__)
 
@@ -18,25 +19,25 @@ ROUTE = {
     1: {
         "name": "📍 Национальная библиотека",
         "address": "пр. Независимости, 116",
-        "description": "🏛️ Легендарный алмаз знаний. Поднимитесь на смотровую площадку (22 этаж) для панорамного вида на город.",
+        "description": "🏛️ Легендарный алмаз знаний. Поднимитесь на смотровую площадку.",
         "time": "⏰ 1-1.5 часа",
-        "tips": "💡 Совет: Приходите к закату - виды потрясающие!",
+        "tips": "💡 Совет: Приходите к закату",
         "next": 2,
         "coordinates": "53.9317, 27.6459"
     },
     2: {
         "name": "🎭 Верхний город",
         "address": "ул. Интернациональная, пл. Свободы",
-        "description": "Историческое сердце Минска: Ратуша, Кафедральный собор, Костел Святого Симеона и Елены (Красный костел).",
+        "description": "Историческое сердце Минска: Ратуша, Кафедральный собор.",
         "time": "⏰ 2-3 часа",
-        "tips": "💡 Совет: Загляните в кафе 'Бернардинский дворик' на обед",
+        "tips": "💡 Совет: Загляните в кафе 'Бернардинский дворик'",
         "next": 3,
         "coordinates": "53.9045, 27.5556"
     },
     3: {
         "name": "🚶‍♂️ Троицкое предместье",
         "address": "ул. Троицкая, 1",
-        "description": "Отреставрированный исторический квартал на берегу Свислочи. Брусчатка, уютные домики, музеи.",
+        "description": "Отреставрированный исторический квартал на берегу Свислочи.",
         "time": "⏰ 1-1.5 часа",
         "tips": "💡 Совет: Попробуйте драники в ресторане 'Троицкий'",
         "next": 4,
@@ -47,14 +48,14 @@ ROUTE = {
         "address": "парк ул. Янки Купалы",
         "description": "Мемориальный комплекс 'Сыновьям Отечества, погибшим за его пределами'.",
         "time": "⏰ 30-40 мин",
-        "tips": "💡 Совет: Вечером включается подсветка - очень атмосферно",
+        "tips": "💡 Совет: Вечером включается подсветка",
         "next": 5,
         "coordinates": "53.9107, 27.5568"
     },
     5: {
         "name": "🌳 Парк Горького",
         "address": "ул. Фрунзе, 2",
-        "description": "Центральный парк с аттракционами, колесом обозрения и уютными аллеями.",
+        "description": "Центральный парк с аттракционами и колесом обозрения.",
         "time": "⏰ 1-2 часа",
         "tips": "💡 Совет: Прокатитесь на колесе обозрения",
         "next": 6,
@@ -63,33 +64,42 @@ ROUTE = {
     6: {
         "name": "🎨 Октябрьская улица",
         "address": "ул. Октябрьская",
-        "description": "Креативный кластер Минска. Стрит-арт, граффити, бары, арт-галереи.",
+        "description": "Креативный кластер Минска. Стрит-арт, бары, арт-галереи.",
         "time": "⏰ 1.5-2 часа",
-        "tips": "💡 Совет: Завершите вечер в одном из локальных баров",
+        "tips": "💡 Совет: Завершите вечер в локальном баре",
         "next": None,
         "coordinates": "53.8995, 27.5528"
     }
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик команды /start"""
+    logger.info(f"📨 Получена команда /start от пользователя {update.effective_user.id}")
     user_name = update.effective_user.first_name
+    
     welcome_text = (
         f"🌟 Привет, {user_name}! 🌟\n\n"
         f"Я бот-гид по Минску от вашего любимого блогера! 🤗\n\n"
         f"Я помогу вам пройти уникальный маршрут по самым интересным местам столицы Беларуси.\n\n"
         f"Готовы начать путешествие? 🚀"
     )
+    
     keyboard = [
         [InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")],
         [InlineKeyboardButton("ℹ️ О маршруте", callback_data="about_route")],
         [InlineKeyboardButton("❓ Помощь", callback_data="help")]
     ]
+    
+    logger.info("📤 Отправляю приветственное сообщение")
     await update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard))
     return SELECTING_ACTION
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик нажатий на кнопки"""
     query = update.callback_query
+    logger.info(f"🔘 Получен callback: {query.data} от пользователя {update.effective_user.id}")
     await query.answer()
+    
     data = query.data
     
     if data == "start_route":
@@ -102,11 +112,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Это авторский маршрут по Минску, который включает:\n"
             "• 6 ключевых достопримечательностей\n"
             "• Оптимальный маршрут для прогулки\n"
-            "• Интересные факты и советы\n"
-            "• Рекомендации по времени\n\n"
+            "• Интересные факты и советы\n\n"
             "Общая протяженность: ~5 км\n"
-            "Время прохождения: 4-6 часов\n\n"
-            "Готовы начать? Нажмите 'Начать маршрут'! 🗺️"
+            "Время прохождения: 4-6 часов"
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(about_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
@@ -117,9 +125,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "• Нажмите 'Начать маршрут' для начала путешествия\n"
             "• Бот будет показывать точки маршрута по очереди\n"
             "• Используйте кнопки для навигации\n"
-            "• Можете посмотреть местоположение на карте\n"
-            "• В любой момент можете завершить маршрут\n\n"
-            "Если остались вопросы - задавайте их блогеру в Instagram! 📱"
+            "• Можете посмотреть местоположение на карте"
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(help_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
@@ -145,8 +151,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif data == "finish_route":
         await query.edit_message_text(
             "👋 Спасибо за прогулку по Минску!\n\n"
-            "Надеюсь, вам понравился маршрут! "
-            "Поделитесь впечатлениями в комментариях у блогера 📸\n\n"
+            "Поделитесь впечатлениями в Instagram с хештегом #МинскСБлогером\n\n"
             "Чтобы начать заново, нажмите /start"
         )
         return ConversationHandler.END
@@ -177,23 +182,19 @@ async def show_route_point(query, context: ContextTypes.DEFAULT_TYPE):
 async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     finish_text = (
         "🎉 *Поздравляю! Вы прошли весь маршрут!* 🎉\n\n"
-        "Спасибо, что путешествуете с нами!\n"
-        "Надеюсь, вам понравился Минск так же, как и мне! 💙\n\n"
-        "Поделитесь своими фотографиями в Instagram с хештегом #МинскСБлогером\n\n"
-        "Чтобы пройти маршрут заново, нажмите /start"
+        "Спасибо за путешествие! 💙"
     )
     keyboard = [[InlineKeyboardButton("🔄 Начать заново", callback_data="start_route")]]
     await query.edit_message_text(finish_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("👋 Маршрут прерван. Если захотите продолжить, просто нажмите /start")
+    await update.message.reply_text("👋 Маршрут прерван. Для начала нажмите /start")
     return ConversationHandler.END
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"❌ Ошибка: {context.error}", exc_info=True)
 
 async def run_bot():
-    """Асинхронный запуск бота"""
     TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not TOKEN:
         logger.error("❌ Токен не найден!")
@@ -201,10 +202,8 @@ async def run_bot():
     
     logger.info("✅ Бот запускается...")
     
-    # Создаем приложение
     application = Application.builder().token(TOKEN).build()
     
-    # Создаем ConversationHandler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -223,14 +222,13 @@ async def run_bot():
     
     logger.info("✅ Запускаю polling...")
     
-    # Запускаем polling
     await application.initialize()
     await application.start()
     await application.updater.start_polling()
     
-    # Держим бота запущенным
+    logger.info("✅ Бот работает! Ожидаю сообщения...")
+    
     try:
-        # Бесконечное ожидание
         while True:
             await asyncio.sleep(3600)
     except (KeyboardInterrupt, SystemExit):
@@ -241,16 +239,13 @@ async def run_bot():
         await application.shutdown()
 
 def main():
-    """Главная функция"""
     try:
-        # Получаем или создаем event loop
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         
-        # Запускаем бота
         loop.run_until_complete(run_bot())
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}", exc_info=True)
