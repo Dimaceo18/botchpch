@@ -6,7 +6,7 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler
 
-# Настройка подробного логирования
+# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -15,60 +15,61 @@ logger = logging.getLogger(__name__)
 
 SELECTING_ACTION, SHOWING_POINT = range(2)
 
+# НОВЫЙ МАРШРУТ ПО МИНСКУ
 ROUTE = {
     1: {
-        "name": "📍 Национальная библиотека",
-        "address": "пр. Независимости, 116",
-        "description": "🏛️ Легендарный алмаз знаний. Поднимитесь на смотровую площадку (22 этаж) для панорамного вида на город.",
+        "name": "🎨 Улица Октябрьская",
+        "address": "ул. Октябрьская, Минск",
+        "description": "Креативное сердце Минска! Здесь расположены легендарные арт-площадки, граффити на стенах, модные бары и галереи. Это место, где старая промышленная архитектура встречается с современным стрит-артом.",
         "time": "⏰ 1-1.5 часа",
-        "tips": "💡 Совет: Приходите к закату - виды потрясающие!",
+        "tips": "💡 Совет: Обязательно найдите знаменитую надпись 'Я люблю Минск' и сделайте фото!",
         "next": 2,
-        "coordinates": "53.9317, 27.6459"
+        "coordinates": "53.8995, 27.5528"
     },
     2: {
-        "name": "🎭 Верхний город",
-        "address": "ул. Интернациональная, пл. Свободы",
-        "description": "Историческое сердце Минска: Ратуша, Кафедральный собор, Костел Святого Симеона и Елены (Красный костел).",
-        "time": "⏰ 2-3 часа",
-        "tips": "💡 Совет: Загляните в кафе 'Бернардинский дворик' на обед",
+        "name": "🕰️ Барахолка на Кирова (Ретротерапия)",
+        "address": "ул. Кирова, 39",
+        "description": "Настоящий портал в прошлое! Здесь можно найти винтажную одежду, старые пластинки, советские значки и уникальные вещи с историей. Атмосфера настоящего минского антиквариата.",
+        "time": "⏰ 1 час",
+        "tips": "💡 Совет: Приходите в выходные - больше всего продавцов и интересных находок!",
         "next": 3,
-        "coordinates": "53.9045, 27.5556"
+        "coordinates": "53.9035, 27.5627"
     },
     3: {
-        "name": "🚶‍♂️ Троицкое предместье",
-        "address": "ул. Троицкая, 1",
-        "description": "Отреставрированный исторический квартал на берегу Свислочи. Брусчатка, уютные домики, музеи.",
-        "time": "⏰ 1-1.5 часа",
-        "tips": "💡 Совет: Попробуйте драники в ресторане 'Троицкий'",
+        "name": "✨ Новые витрины ГУМа с зеркалом в прошлое",
+        "address": "пр. Независимости, 21",
+        "description": "Знаменитый ГУМ преобразился! Современные витрины с интерактивными зеркалами создают удивительный эффект путешествия во времени. Можно увидеть, как выглядел главный универмаг Минска в разные эпохи.",
+        "time": "⏰ 30-40 мин",
+        "tips": "💡 Совет: Подойдите к зеркалу - оно показывает исторические фото места, где вы стоите!",
         "next": 4,
-        "coordinates": "53.9083, 27.5547"
+        "coordinates": "53.9019, 27.5635"
     },
     4: {
-        "name": "🏰 Остров слез",
-        "address": "парк ул. Янки Купалы",
-        "description": "Мемориальный комплекс 'Сыновьям Отечества, погибшим за его пределами'.",
-        "time": "⏰ 30-40 мин",
-        "tips": "💡 Совет: Вечером включается подсветка - очень атмосферно",
+        "name": "🏨 Новая зона отдыха у Waldorf Astoria",
+        "address": "пр. Победителей, 9",
+        "description": "Элегантное общественное пространство у одного из самых роскошных отелей Минска. Современный ландшафтный дизайн, уютные лавочки, фонтаны и потрясающий вид на набережную Свислочи.",
+        "time": "⏰ 45 мин",
+        "tips": "💡 Совет: Идеальное место для закатной прогулки - открывается красивый вид на вечерний город",
         "next": 5,
-        "coordinates": "53.9107, 27.5568"
+        "coordinates": "53.9112, 27.5545"
     },
     5: {
-        "name": "🌳 Парк Горького",
-        "address": "ул. Фрунзе, 2",
-        "description": "Центральный парк с аттракционами, колесом обозрения и уютными аллеями.",
-        "time": "⏰ 1-2 часа",
-        "tips": "💡 Совет: Прокатитесь на колесе обозрения",
+        "name": "🏛️ Дворик М15 и Осмоловке",
+        "address": "ул. Осмоловка, 15",
+        "description": "Уютный дворик в самом сердце города, где сохранилась атмосфера старого Минска. Аутентичные постройки, оригинальная архитектура и камерное пространство для неспешных прогулок.",
+        "time": "⏰ 30-40 мин",
+        "tips": "💡 Совет: Обратите внимание на детали - здесь много интересных архитектурных элементов",
         "next": 6,
-        "coordinates": "53.9019, 27.5710"
+        "coordinates": "53.9088, 27.5589"
     },
     6: {
-        "name": "🎨 Октябрьская улица",
-        "address": "ул. Октябрьская",
-        "description": "Креативный кластер Минска. Стрит-арт, граффити, бары, арт-галереи. Современное лицо города.",
-        "time": "⏰ 1.5-2 часа",
-        "tips": "💡 Совет: Завершите вечер в одном из локальных баров",
+        "name": "🥬 Комаровка",
+        "address": "ул. Веры Хоружей, 8",
+        "description": "Легендарный минский рынок с богатой историей. Здесь можно купить свежие фермерские продукты, попробовать белорусские деликатесы и прочувствовать настоящий колорит столицы.",
+        "time": "⏰ 1-2 часа",
+        "tips": "💡 Совет: Попробуйте местные сыры и копчености - это визитная карточка Комаровки!",
         "next": None,
-        "coordinates": "53.8995, 27.5528"
+        "coordinates": "53.9098, 27.5819"
     }
 }
 
@@ -80,8 +81,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     welcome_text = (
         f"🌟 Привет, {user_name}! 🌟\n\n"
         f"Я бот-гид по Минску от вашего любимого блогера! 🤗\n\n"
-        f"Я помогу вам пройти уникальный маршрут по самым интересным местам столицы Беларуси.\n\n"
-        f"Готовы начать путешествие? 🚀"
+        f"Я подготовил для вас новый уникальный маршрут по самым интересным местам столицы Беларуси.\n\n"
+        f"Готовы отправиться в путешествие? 🚀"
     )
     
     keyboard = [
@@ -106,34 +107,38 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data['current_point'] = 1
         await show_route_point(query, context)
         return SHOWING_POINT
+    
     elif data == "about_route":
         about_text = (
             "📖 *О маршруте:*\n\n"
-            "Это авторский маршрут по Минску, который включает:\n"
-            "• 6 ключевых достопримечательностей\n"
-            "• Оптимальный маршрут для прогулки\n"
-            "• Интересные факты и советы\n"
-            "• Рекомендации по времени\n\n"
-            "Общая протяженность: ~5 км\n"
+            "Это авторский маршрут по новым и культовым местам Минска, который включает:\n"
+            "• 6 уникальных локаций\n"
+            "• Современные арт-пространства\n"
+            "• Исторические места с новой жизнью\n"
+            "• Атмосферные уголки города\n\n"
+            "Общая протяженность: ~4 км\n"
             "Время прохождения: 4-6 часов\n\n"
             "Готовы начать? Нажмите 'Начать маршрут'! 🗺️"
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(about_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return SELECTING_ACTION
+    
     elif data == "help":
         help_text = (
             "❓ *Как пользоваться ботом:*\n\n"
             "• Нажмите 'Начать маршрут' для начала путешествия\n"
             "• Бот будет показывать точки маршрута по очереди\n"
             "• Используйте кнопки для навигации\n"
-            "• Можете посмотреть местоположение на карте\n"
+            "• Нажмите 'Показать на карте' - откроется Google Maps с точкой на карте\n"
+            "• Кнопка 'Идём дальше' - перейти к следующей локации\n"
             "• В любой момент можете завершить маршрут\n\n"
-            "Если остались вопросы - задавайте их блогеру в Instagram! 📱"
+            "Приятной прогулки! 🌟"
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(help_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return SELECTING_ACTION
+    
     elif data == "next_point":
         current = context.user_data.get('current_point', 1)
         if ROUTE[current]['next']:
@@ -142,64 +147,91 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         else:
             await show_finish(query, context)
             return ConversationHandler.END
+    
     elif data == "show_map":
         current = context.user_data.get('current_point', 1)
-        coords = ROUTE[current]['coordinates']
-        map_url = f"https://www.google.com/maps/search/?api=1&query={coords}"
-        await query.edit_message_text(
-            f"🗺️ *Как добраться:*\n\n[Открыть в Google Maps]({map_url})\n\n📍 {ROUTE[current]['address']}",
-            parse_mode='Markdown',
-            disable_web_page_preview=True
-        )
-        await show_route_point(query, context)
+        if current in ROUTE:
+            coords = ROUTE[current]['coordinates']
+            map_url = f"https://www.google.com/maps/search/?api=1&query={coords}"
+            
+            # Отправляем новое сообщение с картой
+            await query.message.reply_text(
+                f"🗺️ *Как добраться:*\n\n"
+                f"[Открыть в Google Maps]({map_url})\n\n"
+                f"📍 *Адрес:* {ROUTE[current]['address']}\n\n"
+                f"🏛️ *Место:* {ROUTE[current]['name']}",
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+            
+            # Возвращаем пользователя к текущей точке
+            await show_route_point(query, context)
+    
     elif data == "finish_route":
         await query.edit_message_text(
             "👋 Спасибо за прогулку по Минску!\n\n"
-            "Надеюсь, вам понравился маршрут! "
+            "Надеюсь, вам понравился новый маршрут! "
             "Поделитесь впечатлениями в комментариях у блогера 📸\n\n"
             "Чтобы начать заново, нажмите /start"
         )
         return ConversationHandler.END
+    
     return SHOWING_POINT
 
 async def show_route_point(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает текущую точку маршрута"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
+    total = len(ROUTE)
+    
     text = (
-        f"📍 *Точка {current} из 6*\n\n"
-        f"🏛️ *{point['name']}*\n"
+        f"📍 *Точка {current} из {total}*\n\n"
+        f"{point['name']}\n"
         f"📍 *Адрес:* {point['address']}\n\n"
         f"📝 *Описание:*\n{point['description']}\n\n"
         f"{point['time']}\n"
         f"{point['tips']}\n"
     )
     
+    # Создаем кнопки
     keyboard = []
+    
     if point['next']:
-        keyboard.append([InlineKeyboardButton("➡️ Следующая точка", callback_data="next_point")])
+        keyboard.append([InlineKeyboardButton("🚶‍♂️ Идём дальше", callback_data="next_point")])
     else:
         keyboard.append([InlineKeyboardButton("🏁 Завершить маршрут", callback_data="finish_route")])
+    
     keyboard.append([InlineKeyboardButton("🗺️ Показать на карте", callback_data="show_map")])
     keyboard.append([InlineKeyboardButton("❌ Завершить экскурсию", callback_data="finish_route")])
     
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Обновляем сообщение
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает финальное сообщение"""
     finish_text = (
         "🎉 *Поздравляю! Вы прошли весь маршрут!* 🎉\n\n"
-        "Спасибо, что путешествуете с нами!\n"
-        "Надеюсь, вам понравился Минск так же, как и мне! 💙\n\n"
+        "Спасибо, что путешествуете с нами по обновленному Минску!\n"
+        "Надеюсь, вам открылись новые грани любимого города! 💙\n\n"
         "Поделитесь своими фотографиями в Instagram с хештегом #МинскСБлогером\n\n"
         "Чтобы пройти маршрут заново, нажмите /start"
     )
+    
     keyboard = [[InlineKeyboardButton("🔄 Начать заново", callback_data="start_route")]]
-    await query.edit_message_text(finish_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("👋 Маршрут прерван. Если захотите продолжить, просто нажмите /start")
+    """Отмена маршрута"""
+    await update.message.reply_text(
+        "👋 Маршрут прерван. Если захотите продолжить, просто нажмите /start"
+    )
     return ConversationHandler.END
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ошибок"""
     logger.error(f"❌ Ошибка: {context.error}", exc_info=True)
 
 async def run_bot():
@@ -213,15 +245,12 @@ async def run_bot():
     
     application = Application.builder().token(TOKEN).build()
     
-    # ========== ТЕСТОВЫЙ ОБРАБОТЧИК ДЛЯ ДИАГНОСТИКИ ==========
+    # Тестовый обработчик для проверки работы
     async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Тестовый обработчик для диагностики"""
         logger.info(f"🔧 TEST: Получено сообщение: {update.message.text}")
         await update.message.reply_text("✅ Бот работает! Это тестовое сообщение.")
     
-    # Добавляем тестовый обработчик
     application.add_handler(CommandHandler("test", test_handler))
-    # ========== КОНЕЦ ТЕСТОВОГО ОБРАБОТЧИКА ==========
     
     # Основной ConversationHandler
     conv_handler = ConversationHandler(
