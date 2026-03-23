@@ -78,7 +78,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info(f"📨 Получена команда /start от пользователя {update.effective_user.id}")
     user_name = update.effective_user.first_name
     
-    welcome_text = ( f"🌟 Привет, {user_name}! 🌟\n\n" f"Меня зовут Илья, я блогер ЧТОПОЧЕМ, рассказываю о ценах и интересных местах Минска! 🤗\n\n" f"Я подготовил для Вас новый уникальный маршрут по самым интересным местам города.\n\n" f"Готовы отправиться в путешествие? 🚀" )
+    welcome_text = (
+        f"🌟 Привет, {user_name}! 🌟\n\n"
+        f"Я бот-гид по Минску от вашего любимого блогера! 🤗\n\n"
+        f"Я подготовил для вас новый уникальный маршрут по самым интересным местам столицы Беларуси.\n\n"
+        f"Готовы отправиться в путешествие? 🚀"
+    )
     
     keyboard = [
         [InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")],
@@ -89,6 +94,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info("📤 Отправляю приветственное сообщение")
     await update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard))
     return SELECTING_ACTION
+
+async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Тестовый обработчик"""
+    logger.info("🔧 TEST: Получено сообщение: /test")
+    await update.message.reply_text("✅ Бот работает! Это тестовое сообщение.")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработчик нажатий на кнопки"""
@@ -258,19 +268,8 @@ async def run_bot():
     
     application = Application.builder().token(TOKEN).build()
     
-    # Добавляем обработчик команды start отдельно для теста
-    async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        logger.info("🔵 START HANDLER вызван")
-        await start(update, context)
-    
-    # Регистрируем обработчики
-    application.add_handler(CommandHandler("start", start_handler))
-    application.add_handler(CommandHandler("test", test_handler))
-    
-    async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        logger.info("🔧 TEST: Получено сообщение")
-        await update.message.reply_text("✅ Бот работает!")
-    
+    # Регистрируем обработчики команд
+    application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("test", test_handler))
     
     # ConversationHandler
