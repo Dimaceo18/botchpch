@@ -4,22 +4,17 @@ echo "========================================="
 echo "🚀 Запуск Telegram бота"
 echo "========================================="
 
-# Выводим версии для диагностики
+# Выводим версию Python
 echo "🐍 Python version:"
 python --version
 
-echo "📦 Pip version:"
-pip --version
-
-echo "📚 Установленные пакеты:"
-pip list | grep telegram
+# Проверяем установку
+echo "📦 Проверка установленных пакетов:"
+python -c "import telegram; print(f'✅ python-telegram-bot {telegram.__version__}')"
 
 echo "========================================="
 echo "🤖 Запускаем бота..."
 echo "========================================="
 
-# Запускаем бота с принудительным буферизированным выводом
-PYTHONUNBUFFERED=1 python bot.py
-
-# Если бот упал
-echo "❌ Бот остановлен с кодом: $?"
+# Запускаем бота
+exec python bot.py
