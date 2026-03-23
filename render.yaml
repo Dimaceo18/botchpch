@@ -1,0 +1,16 @@
+services:
+  - type: worker
+    name: telegram-minsk-bot
+    runtime: python
+    repo: https://github.com/ваш-аккаунт/telegram-minsk-bot
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: ./start.sh
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: 1
+    plan: free
+    autoDeploy: true
