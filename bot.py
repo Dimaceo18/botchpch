@@ -105,7 +105,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     if data == "start_route":
         context.user_data['current_point'] = 1
-        await show_route_point(query, context)
+        # Отправляем первую локацию новым сообщением
+        await send_route_point(query.message.chat_id, context, query)
         return SHOWING_POINT
     
     elif data == "about_route":
@@ -128,10 +129,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         help_text = (
             "❓ *Как пользоваться ботом:*\n\n"
             "• Нажмите 'Начать маршрут' для начала путешествия\n"
-            "• Бот будет показывать точки маршрута по очереди\n"
-            "• Используйте кнопки для навигации\n"
-            "• Нажмите 'Показать на карте' - откроется Google Maps с точкой на карте\n"
-            "• Кнопка 'Идём дальше' - перейти к следующей локации\n"
+            "• Бот будет отправлять каждую точку маршрута новым сообщением\n"
+            "• Нажмите 'Идём дальше' - появится следующая локация\n"
+            "• Нажмите 'Показать на карте' - откроется Google Maps\n"
             "• В любой момент можете завершить маршрут\n\n"
             "Приятной прогулки! 🌟"
         )
@@ -143,10 +143,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         current = context.user_data.get('current_point', 1)
         if ROUTE[current]['next']:
             context.user_data['current_point'] = ROUTE[current]['next']
-            await show_route_point(query, context)
+            # Отправляем следующую локацию новым сообщением
+            await send_route_point(query.message.chat_id, context, query)
         else:
-            await show_finish(query, context)
+            await show_finish(query.message.chat_id, context, query)
             return ConversationHandler.END
+        return SHOWING_POINT
     
     elif data == "show_map":
         current = context.user_data.get('current_point', 1)
@@ -163,23 +165,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode='Markdown',
                 disable_web_page_preview=True
             )
-            
-            # Возвращаем пользователя к текущей точке
-            await show_route_point(query, context)
     
     elif data == "finish_route":
-        await query.edit_message_text(
+        await query.message.reply_text(
             "👋 Спасибо за прогулку по Минску!\n\n"
             "Надеюсь, вам понравился новый маршрут! "
             "Поделитесь впечатлениями в комментариях у блогера 📸\n\n"
             "Чтобы начать заново, нажмите /start"
         )
+        # Удаляем сообщение с кнопками, если нужно
+        try:
+            await query.message.delete()
+        except:
+            pass
         return ConversationHandler.END
     
     return SHOWING_POINT
 
-async def show_route_point(query, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает текущую точку маршрута"""
+async def send_route_point(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
+    """Отправляет текущую точку маршрута новым сообщением"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
     total = len(ROUTE)
@@ -206,10 +210,23 @@ async def show_route_point(query, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Обновляем сообщение
-    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    # Отправляем новое сообщение
+    if query:
+        await query.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+        # Удаляем предыдущее сообщение с кнопками (опционально)
+        try:
+            await query.message.delete()
+        except:
+            pass
+    else:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
-async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
+async def show_finish(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
     """Показывает финальное сообщение"""
     finish_text = (
         "🎉 *Поздравляю! Вы прошли весь маршрут!* 🎉\n\n"
@@ -221,7 +238,21 @@ async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[InlineKeyboardButton("🔄 Начать заново", callback_data="start_route")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
+    
+    if query:
+        await query.message.reply_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
+        # Удаляем последнее сообщение с точкой
+        try:
+            await query.message.delete()
+        except:
+            pass
+    else:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=finish_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Отмена маршрута"""
