@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 import asyncio
+import requests
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -13,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# МАРШРУТ ПО МИНСКУ С ФОТОГРАФИЯМИ
+# МАРШРУТ ПО МИНСКУ С ФОТОГРАФИЯМИ И СОВЕТАМИ
 ROUTE = {
     1: {
         "name": "🎨 Улица Октябрьская",
@@ -21,6 +23,7 @@ ROUTE = {
         "description": "Креативное сердце Минска! Здесь расположены легендарные арт-площадки, граффити на стенах, модные бары и галереи. Это место, где старая промышленная архитектура встречается с современным стрит-артом.",
         "time": "⏰ 1-1.5 часа",
         "tips": "💡 Совет: Обязательно найдите знаменитую надпись 'Я люблю Минск' и сделайте фото!",
+        "photo_tips": "📸 Лучшее место для фото: у входа в арт-центр 'Октябрьская', особенно красиво в золотой час (закат)",
         "next": 2,
         "coordinates": "53.8995, 27.5528",
         "photo": "1.jpg"
@@ -31,6 +34,7 @@ ROUTE = {
         "description": "Настоящий портал в прошлое! Здесь можно найти винтажную одежду, старые пластинки, советские значки и уникальные вещи с историей. Атмосфера настоящего минского антиквариата.",
         "time": "⏰ 1 час",
         "tips": "💡 Совет: Приходите в выходные - больше всего продавцов и интересных находок!",
+        "photo_tips": "📸 Снимайте детали: старые значки, пластинки, винтажную одежду. Отлично получаются кадры в стиле ретро",
         "next": 3,
         "coordinates": "53.9035, 27.5627",
         "photo": "2.jpg"
@@ -41,6 +45,7 @@ ROUTE = {
         "description": "Знаменитый ГУМ преобразился! Современные витрины с интерактивными зеркалами создают удивительный эффект путешествия во времени. Можно увидеть, как выглядел главный универмаг Минска в разные эпохи.",
         "time": "⏰ 30-40 мин",
         "tips": "💡 Совет: Подойдите к зеркалу - оно показывает исторические фото места, где вы стоите!",
+        "photo_tips": "📸 Обязательно сфотографируйтесь у интерактивного зеркала. Лучшие кадры получаются, когда на зеркале появляется историческое фото",
         "next": 4,
         "coordinates": "53.9019, 27.5635",
         "photo": "3.jpg"
@@ -51,6 +56,7 @@ ROUTE = {
         "description": "Элегантное общественное пространство у одного из самых роскошных отелей Минска. Современный ландшафтный дизайн, уютные лавочки, фонтаны и потрясающий вид на набережную Свислочи.",
         "time": "⏰ 45 мин",
         "tips": "💡 Совет: Идеальное место для закатной прогулки - открывается красивый вид на вечерний город",
+        "photo_tips": "📸 Лучшее время для фото - закат. Снимайте на фоне фонтанов и набережной. Панорамные снимки получаются особенно эффектными",
         "next": 5,
         "coordinates": "53.9112, 27.5545",
         "photo": "4.jpg"
@@ -61,6 +67,7 @@ ROUTE = {
         "description": "Уютный дворик в самом сердце города, где сохранилась атмосфера старого Минска. Аутентичные постройки, оригинальная архитектура и камерное пространство для неспешных прогулок.",
         "time": "⏰ 30-40 мин",
         "tips": "💡 Совет: Обратите внимание на детали - здесь много интересных архитектурных элементов",
+        "photo_tips": "📸 Снимайте детали архитектуры, старые окна, двери. Получаются атмосферные кадры в стиле 'старого Минска'",
         "next": 6,
         "coordinates": "53.9088, 27.5589",
         "photo": "5.jpg"
@@ -71,11 +78,40 @@ ROUTE = {
         "description": "Легендарный минский рынок с богатой историей. Здесь можно купить свежие фермерские продукты, попробовать белорусские деликатесы и прочувствовать настоящий колорит столицы.",
         "time": "⏰ 1-2 часа",
         "tips": "💡 Совет: Попробуйте местные сыры и копчености - это визитная карточка Комаровки!",
+        "photo_tips": "📸 Снимайте яркие прилавки с фруктами, овощами, местными деликатесами. Получаются сочные, красочные кадры",
         "next": None,
         "coordinates": "53.9098, 27.5819",
         "photo": "6.jpg"
     }
 }
+
+def get_progress_bar(current, total):
+    """Создаёт визуальную полосу прогресса"""
+    filled = int(current / total * 10)
+    bar = "█" * filled + "░" * (10 - filled)
+    return f"📊 Прогресс: [{bar}] {current}/{total}"
+
+async def get_weather(coordinates):
+    """Получает погоду для координат"""
+    try:
+        lat, lon = coordinates.split(', ')
+        # Используем бесплатный API Open-Meteo (без ключа)
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&language=ru"
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        
+        if 'current_weather' in data:
+            temp = data['current_weather']['temperature']
+            wind = data['current_weather']['windspeed']
+            
+            # Определяем иконку погоды
+            weather_icon = "☀️" if temp > 20 else "🌤️" if temp > 10 else "⛅" if temp > 0 else "❄️"
+            
+            return f"{weather_icon} Погода сейчас: {temp}°C, ветер {wind} м/с"
+        return "🌡️ Данные о погоде временно недоступны"
+    except Exception as e:
+        logger.error(f"Ошибка получения погоды: {e}")
+        return "🌡️ Не удалось получить данные о погоде"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
@@ -112,7 +148,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"🔘 Получен callback: {data} от пользователя {update.effective_user.id}")
     
     if data == "start_route":
-        # Начинаем маршрут с первой локации
         context.user_data['current_point'] = 1
         await send_route_point(query, context, is_first=True)
     
@@ -124,6 +159,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Современные арт-пространства\n"
             "• Исторические места с новой жизнью\n"
             "• Атмосферные уголки города\n\n"
+            "✨ *Новые функции:*\n"
+            "• Прогресс-бар - видите сколько осталось\n"
+            "• Погода в каждой локации\n"
+            "• Советы для красивых фото\n"
+            "• Поделиться локацией с друзьями\n\n"
             "Общая протяженность: ~4 км\n"
             "Время прохождения: 4-6 часов\n\n"
             "Готовы начать? Нажмите 'Начать маршрут'! 🗺️"
@@ -136,9 +176,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "❓ *Как пользоваться ботом:*\n\n"
             "• Нажмите 'Начать маршрут' для начала путешествия\n"
             "• Бот будет отправлять каждую точку маршрута с фото\n"
+            "• 📊 Прогресс-бар показывает сколько локаций пройдено\n"
+            "• 🌤️ Погода подскажет, как одеться\n"
+            "• 📸 Советы по фото помогут сделать красивые снимки\n"
+            "• 📤 Поделиться - отправить локацию друзьям\n"
             "• Нажмите 'Идём дальше' - появится следующая локация\n"
-            "• Нажмите 'Показать на карте' - откроется Google Maps\n"
-            "• В любой момент можете завершить маршрут\n\n"
+            "• Нажмите 'Показать на карте' - откроется Google Maps\n\n"
             "Приятной прогулки! 🌟"
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
@@ -167,6 +210,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 disable_web_page_preview=True
             )
     
+    elif data.startswith("share_"):
+        # Поделиться локацией
+        point_num = int(data.split("_")[1])
+        point = ROUTE[point_num]
+        share_text = (
+            f"📍 *{point['name']}*\n"
+            f"Адрес: {point['address']}\n\n"
+            f"{point['description'][:100]}...\n\n"
+            f"Путешествую с ботом-гидом по Минску! 🤗\n"
+            f"Начни и ты: @ваш_бот_username"
+        )
+        keyboard = [[InlineKeyboardButton("📤 Поделиться", switch_inline_query=share_text)]]
+        await query.message.reply_text(
+            "📱 *Поделиться локацией:*\n\n"
+            f"{share_text}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    
     elif data == "finish_route":
         await query.message.reply_text(
             "👋 Спасибо за прогулку по Минску!\n\n"
@@ -176,18 +238,28 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE, is_first=False):
-    """Отправляет текущую точку маршрута с фото (сообщение НЕ удаляется)"""
+    """Отправляет текущую точку маршрута с фото и всеми плюшками"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
     total = len(ROUTE)
     
+    # Прогресс-бар
+    progress_bar = get_progress_bar(current, total)
+    
+    # Получаем погоду
+    weather = await get_weather(point['coordinates'])
+    
+    # Формируем текст
     text = (
+        f"{progress_bar}\n\n"
         f"📍 *Точка {current} из {total}*\n\n"
         f"{point['name']}\n"
         f"📍 *Адрес:* {point['address']}\n\n"
         f"📝 *Описание:*\n{point['description']}\n\n"
         f"{point['time']}\n"
-        f"{point['tips']}\n"
+        f"{point['tips']}\n\n"
+        f"{point['photo_tips']}\n\n"
+        f"{weather}\n"
     )
     
     # Кнопки для текущей локации
@@ -199,6 +271,7 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE, is_first=F
         keyboard.append([InlineKeyboardButton("🏁 Завершить маршрут", callback_data="finish_route")])
     
     keyboard.append([InlineKeyboardButton("🗺️ Показать на карте", callback_data="show_map")])
+    keyboard.append([InlineKeyboardButton("📤 Поделиться локацией", callback_data=f"share_{current}")])
     keyboard.append([InlineKeyboardButton("❌ Завершить экскурсию", callback_data="finish_route")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -216,7 +289,6 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE, is_first=F
                     parse_mode='Markdown'
                 )
         else:
-            # Если фото нет, отправляем только текст
             logger.warning(f"⚠️ Фото {photo_path} не найдено")
             await query.message.reply_text(
                 text,
@@ -231,7 +303,7 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE, is_first=F
             parse_mode='Markdown'
         )
     
-    # Если это первая локация, удаляем стартовое сообщение с кнопками
+    # Если это первая локация, удаляем стартовое сообщение
     if is_first:
         try:
             await query.message.delete()
@@ -243,6 +315,10 @@ async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     """Показывает финальное сообщение"""
     finish_text = (
         "🎉 *Поздравляю! Вы прошли весь маршрут!* 🎉\n\n"
+        "📊 *Статистика:*\n"
+        "✅ Пройдено 6 из 6 локаций\n"
+        "📸 Сделано отличных фото\n"
+        "🌤️ Погода была прекрасной\n\n"
         "Спасибо, что путешествуете с нами по обновленному Минску!\n"
         "Надеюсь, вам открылись новые грани любимого города! 💙\n\n"
         "Поделитесь своими фотографиями в Instagram с хештегом #МинскСБлогером\n\n"
