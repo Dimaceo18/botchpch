@@ -103,14 +103,14 @@ async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработчик нажатий на кнопки"""
     query = update.callback_query
-    logger.info(f"🔘 Получен callback: {query.data} от пользователя {update.effective_user.id}")
     await query.answer()
     
     data = query.data
+    logger.info(f"🔘 Получен callback: {data} от пользователя {update.effective_user.id}")
     
     if data == "start_route":
         context.user_data['current_point'] = 1
-        await send_route_point(query.message.chat_id, context, query)
+        await send_route_point(query, context)
         return SHOWING_POINT
     
     elif data == "about_route":
@@ -147,9 +147,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         current = context.user_data.get('current_point', 1)
         if ROUTE[current]['next']:
             context.user_data['current_point'] = ROUTE[current]['next']
-            await send_route_point(query.message.chat_id, context, query)
+            await send_route_point(query, context)
         else:
-            await show_finish(query.message.chat_id, context, query)
+            await show_finish(query, context)
             return ConversationHandler.END
         return SHOWING_POINT
     
@@ -183,7 +183,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     return SHOWING_POINT
 
-async def send_route_point(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
+async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет текущую точку маршрута новым сообщением"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
@@ -210,21 +210,13 @@ async def send_route_point(chat_id, context: ContextTypes.DEFAULT_TYPE, query=No
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if query:
-        await query.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
-        try:
-            await query.message.delete()
-        except:
-            pass
-    else:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    try:
+        await query.message.delete()
+    except:
+        pass
 
-async def show_finish(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
+async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     """Показывает финальное сообщение"""
     finish_text = (
         "🎉 *Поздравляю! Вы прошли весь маршрут!* 🎉\n\n"
@@ -237,19 +229,11 @@ async def show_finish(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
     keyboard = [[InlineKeyboardButton("🔄 Начать заново", callback_data="start_route")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if query:
-        await query.message.reply_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
-        try:
-            await query.message.delete()
-        except:
-            pass
-    else:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=finish_text,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+    await query.message.reply_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
+    try:
+        await query.message.delete()
+    except:
+        pass
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("👋 Маршрут прерван. Для начала нажмите /start")
@@ -272,22 +256,9 @@ async def run_bot():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("test", test_handler))
     
-    # ConversationHandler
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            SELECTING_ACTION: [
-                CallbackQueryHandler(button_handler, pattern='^(start_route|about_route|help)$')
-            ],
-            SHOWING_POINT: [
-                CallbackQueryHandler(button_handler, pattern='^(next_point|show_map|finish_route)$')
-            ],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-        allow_reentry=True
-    )
+    # Регистрируем обработчик для кнопок
+    application.add_handler(CallbackQueryHandler(button_handler))
     
-    application.add_handler(conv_handler)
     application.add_error_handler(error_handler)
     
     logger.info("✅ Запускаю polling...")
