@@ -3,6 +3,8 @@ echo "========================================="
 echo "🚀 Запуск Telegram бота"
 echo "========================================="
 
+export PYTHONUNBUFFERED=1
+
 echo "🐍 Python version:"
 python --version
 
@@ -16,4 +18,4 @@ echo "========================================="
 echo "🤖 Запускаем бота..."
 echo "========================================="
 
-exec python bot.py
+exec python -u bot.py
