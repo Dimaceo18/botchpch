@@ -11,10 +11,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Состояния
 SELECTING_ACTION, SHOWING_POINT = range(2)
 
-# Данные маршрута (те же самые)
 ROUTE = {
     1: {
         "name": "📍 Национальная библиотека",
