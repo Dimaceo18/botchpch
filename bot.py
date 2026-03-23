@@ -3,8 +3,8 @@ import logging
 import os
 import sys
 import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # Настройка логирования
 logging.basicConfig(
@@ -12,8 +12,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-SELECTING_ACTION, SHOWING_POINT = range(2)
 
 # МАРШРУТ ПО МИНСКУ
 ROUTE = {
@@ -24,7 +22,8 @@ ROUTE = {
         "time": "⏰ 1-1.5 часа",
         "tips": "💡 Совет: Обязательно найдите знаменитую надпись 'Я люблю Минск' и сделайте фото!",
         "next": 2,
-        "coordinates": "53.8995, 27.5528"
+        "coordinates": "53.8995, 27.5528",
+        "photo": "1.jpg"
     },
     2: {
         "name": "🕰️ Барахолка на Кирова (Ретротерапия)",
@@ -33,7 +32,8 @@ ROUTE = {
         "time": "⏰ 1 час",
         "tips": "💡 Совет: Приходите в выходные - больше всего продавцов и интересных находок!",
         "next": 3,
-        "coordinates": "53.9035, 27.5627"
+        "coordinates": "53.9035, 27.5627",
+        "photo": "2.jpg"
     },
     3: {
         "name": "✨ Новые витрины ГУМа с зеркалом в прошлое",
@@ -42,7 +42,8 @@ ROUTE = {
         "time": "⏰ 30-40 мин",
         "tips": "💡 Совет: Подойдите к зеркалу - оно показывает исторические фото места, где вы стоите!",
         "next": 4,
-        "coordinates": "53.9019, 27.5635"
+        "coordinates": "53.9019, 27.5635",
+        "photo": "3.jpg"
     },
     4: {
         "name": "🏨 Новая зона отдыха у Waldorf Astoria",
@@ -51,7 +52,8 @@ ROUTE = {
         "time": "⏰ 45 мин",
         "tips": "💡 Совет: Идеальное место для закатной прогулки - открывается красивый вид на вечерний город",
         "next": 5,
-        "coordinates": "53.9112, 27.5545"
+        "coordinates": "53.9112, 27.5545",
+        "photo": "4.jpg"
     },
     5: {
         "name": "🏛️ Дворик М15 и Осмоловке",
@@ -60,7 +62,8 @@ ROUTE = {
         "time": "⏰ 30-40 мин",
         "tips": "💡 Совет: Обратите внимание на детали - здесь много интересных архитектурных элементов",
         "next": 6,
-        "coordinates": "53.9088, 27.5589"
+        "coordinates": "53.9088, 27.5589",
+        "photo": "5.jpg"
     },
     6: {
         "name": "🥬 Комаровка",
@@ -69,19 +72,20 @@ ROUTE = {
         "time": "⏰ 1-2 часа",
         "tips": "💡 Совет: Попробуйте местные сыры и копчености - это визитная карточка Комаровки!",
         "next": None,
-        "coordinates": "53.9098, 27.5819"
+        "coordinates": "53.9098, 27.5819",
+        "photo": "6.jpg"
     }
 }
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     logger.info(f"📨 Получена команда /start от пользователя {update.effective_user.id}")
     user_name = update.effective_user.first_name
     
     welcome_text = (
         f"🌟 Привет, {user_name}! 🌟\n\n"
-        f"Я бот-гид по Минску от вашего любимого блогера! 🤗\n\n"
-        f"Я подготовил для вас новый уникальный маршрут по самым интересным местам столицы Беларуси.\n\n"
+        f"Меня зовут Илья и я создал для тебя гид-бот чтобы гулять по Минску было интереснее! 🤗\n\n"
+        f"Это крутой, авторский маршрут на 6 локаций на которых мы погуляем, пофоткаемся и перекусим.\n\n"
         f"Готовы отправиться в путешествие? 🚀"
     )
     
@@ -93,14 +97,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     logger.info("📤 Отправляю приветственное сообщение")
     await update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard))
-    return SELECTING_ACTION
+    return
 
 async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Тестовый обработчик"""
     logger.info("🔧 TEST: Получено сообщение: /test")
     await update.message.reply_text("✅ Бот работает! Это тестовое сообщение.")
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик нажатий на кнопки"""
     query = update.callback_query
     await query.answer()
@@ -111,7 +115,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if data == "start_route":
         context.user_data['current_point'] = 1
         await send_route_point(query, context)
-        return SHOWING_POINT
     
     elif data == "about_route":
         about_text = (
@@ -127,13 +130,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(about_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-        return SELECTING_ACTION
     
     elif data == "help":
         help_text = (
             "❓ *Как пользоваться ботом:*\n\n"
             "• Нажмите 'Начать маршрут' для начала путешествия\n"
-            "• Бот будет отправлять каждую точку маршрута новым сообщением\n"
+            "• Бот будет отправлять каждую точку маршрута с фото\n"
             "• Нажмите 'Идём дальше' - появится следующая локация\n"
             "• Нажмите 'Показать на карте' - откроется Google Maps\n"
             "• В любой момент можете завершить маршрут\n\n"
@@ -141,7 +143,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         keyboard = [[InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")]]
         await query.edit_message_text(help_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-        return SELECTING_ACTION
     
     elif data == "next_point":
         current = context.user_data.get('current_point', 1)
@@ -150,8 +151,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await send_route_point(query, context)
         else:
             await show_finish(query, context)
-            return ConversationHandler.END
-        return SHOWING_POINT
     
     elif data == "show_map":
         current = context.user_data.get('current_point', 1)
@@ -179,12 +178,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await query.message.delete()
         except:
             pass
-        return ConversationHandler.END
-    
-    return SHOWING_POINT
 
 async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
-    """Отправляет текущую точку маршрута новым сообщением"""
+    """Отправляет текущую точку маршрута с фото"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
     total = len(ROUTE)
@@ -210,7 +206,28 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    # Отправляем фото с подписью
+    photo_path = point['photo']
+    
+    # Проверяем, существует ли файл фото
+    if os.path.exists(photo_path):
+        with open(photo_path, 'rb') as photo:
+            await query.message.reply_photo(
+                photo=photo,
+                caption=text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+    else:
+        # Если фото нет, отправляем только текст
+        logger.warning(f"Фото {photo_path} не найдено")
+        await query.message.reply_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    # Удаляем предыдущее сообщение
     try:
         await query.message.delete()
     except:
@@ -234,10 +251,6 @@ async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
         await query.message.delete()
     except:
         pass
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("👋 Маршрут прерван. Для начала нажмите /start")
-    return ConversationHandler.END
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"❌ Ошибка: {context.error}", exc_info=True)
