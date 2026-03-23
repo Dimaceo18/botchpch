@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # Настройка логирования
@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# МАРШРУТ ПО МИНСКУ
+# МАРШРУТ ПО МИНСКУ С ФОТОГРАФИЯМИ
 ROUTE = {
     1: {
         "name": "🎨 Улица Октябрьская",
@@ -97,7 +97,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info("📤 Отправляю приветственное сообщение")
     await update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard))
-    return
 
 async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Тестовый обработчик"""
@@ -113,8 +112,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"🔘 Получен callback: {data} от пользователя {update.effective_user.id}")
     
     if data == "start_route":
+        # Начинаем маршрут с первой локации
         context.user_data['current_point'] = 1
-        await send_route_point(query, context)
+        await send_route_point(query, context, is_first=True)
     
     elif data == "about_route":
         about_text = (
@@ -148,7 +148,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current = context.user_data.get('current_point', 1)
         if ROUTE[current]['next']:
             context.user_data['current_point'] = ROUTE[current]['next']
-            await send_route_point(query, context)
+            await send_route_point(query, context, is_first=False)
         else:
             await show_finish(query, context)
     
@@ -174,13 +174,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Поделитесь впечатлениями в комментариях у блогера 📸\n\n"
             "Чтобы начать заново, нажмите /start"
         )
-        try:
-            await query.message.delete()
-        except:
-            pass
 
-async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
-    """Отправляет текущую точку маршрута с фото"""
+async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE, is_first=False):
+    """Отправляет текущую точку маршрута с фото (сообщение НЕ удаляется)"""
     current = context.user_data.get('current_point', 1)
     point = ROUTE[current]
     total = len(ROUTE)
@@ -194,6 +190,7 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
         f"{point['tips']}\n"
     )
     
+    # Кнопки для текущей локации
     keyboard = []
     
     if point['next']:
@@ -209,29 +206,38 @@ async def send_route_point(query, context: ContextTypes.DEFAULT_TYPE):
     # Отправляем фото с подписью
     photo_path = point['photo']
     
-    # Проверяем, существует ли файл фото
-    if os.path.exists(photo_path):
-        with open(photo_path, 'rb') as photo:
-            await query.message.reply_photo(
-                photo=photo,
-                caption=text,
+    try:
+        if os.path.exists(photo_path):
+            with open(photo_path, 'rb') as photo:
+                await query.message.reply_photo(
+                    photo=photo,
+                    caption=text,
+                    reply_markup=reply_markup,
+                    parse_mode='Markdown'
+                )
+        else:
+            # Если фото нет, отправляем только текст
+            logger.warning(f"⚠️ Фото {photo_path} не найдено")
+            await query.message.reply_text(
+                text,
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
-    else:
-        # Если фото нет, отправляем только текст
-        logger.warning(f"Фото {photo_path} не найдено")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при отправке фото: {e}")
         await query.message.reply_text(
             text,
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
     
-    # Удаляем предыдущее сообщение
-    try:
-        await query.message.delete()
-    except:
-        pass
+    # Если это первая локация, удаляем стартовое сообщение с кнопками
+    if is_first:
+        try:
+            await query.message.delete()
+            logger.info("🗑️ Стартовое сообщение удалено")
+        except Exception as e:
+            logger.warning(f"Не удалось удалить стартовое сообщение: {e}")
 
 async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     """Показывает финальное сообщение"""
@@ -247,15 +253,13 @@ async def show_finish(query, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.message.reply_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
-    try:
-        await query.message.delete()
-    except:
-        pass
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ошибок"""
     logger.error(f"❌ Ошибка: {context.error}", exc_info=True)
 
 async def run_bot():
+    """Запуск бота"""
     TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not TOKEN:
         logger.error("❌ Токен не найден!")
@@ -281,6 +285,7 @@ async def run_bot():
     await application.updater.start_polling()
     
     logger.info("✅ Бот работает! Ожидаю сообщения...")
+    logger.info("📝 Отправьте /start для начала или /test для проверки")
     
     try:
         while True:
