@@ -4,17 +4,13 @@ echo "========================================="
 echo "🚀 Запуск Telegram бота"
 echo "========================================="
 
-# Выводим версию Python
+# Используем установленный Python 3.11
+export PATH=/opt/python311/bin:$PATH
+export PYTHONPATH=/opt/python311/lib/python3.11/site-packages
+
+# Выводим версию
 echo "🐍 Python version:"
 python --version
-
-# Проверяем установку
-echo "📦 Проверка установленных пакетов:"
-python -c "import telegram; print(f'✅ python-telegram-bot {telegram.__version__}')"
-
-echo "========================================="
-echo "🤖 Запускаем бота..."
-echo "========================================="
 
 # Запускаем бота
 exec python bot.py
