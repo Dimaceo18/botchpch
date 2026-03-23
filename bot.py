@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Telegram бот-гид по Минску
-Версия: 1.0.0
 """
 
 import sys
@@ -11,13 +10,19 @@ import platform
 from datetime import datetime
 
 # Проверка версии Python
-REQUIRED_PYTHON = (3, 8)
-if sys.version_info < REQUIRED_PYTHON:
-    print(f"❌ Ошибка: Требуется Python {REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]} или выше")
+REQUIRED_PYTHON = (3, 8, 0)
+CURRENT_PYTHON = sys.version_info
+
+if CURRENT_PYTHON < REQUIRED_PYTHON:
+    print(f"❌ Ошибка: Требуется Python {REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]}+")
     print(f"Текущая версия: {platform.python_version()}")
     sys.exit(1)
 
-# Проверка установки библиотек
+# Проверка на нестабильные версии
+if CURRENT_PYTHON >= (3, 13, 0):
+    print(f"⚠️  Внимание: Python {platform.python_version()} может быть нестабильным")
+    print("Рекомендуется Python 3.11 или 3.12")
+
 try:
     import telegram
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -32,9 +37,7 @@ except ImportError as e:
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +53,7 @@ logger.info("=" * 50)
 # Состояния для ConversationHandler
 SELECTING_ACTION, SHOWING_POINT = range(2)
 
-# Данные маршрута по Минску (та же структура)
+# Данные маршрута по Минску
 ROUTE = {
     1: {
         "name": "📍 Национальная библиотека",
@@ -76,7 +79,7 @@ ROUTE = {
         "description": "Отреставрированный исторический квартал на берегу Свислочи. Брусчатка, уютные домики, музеи. Отличное место для фотосессий и неспешных прогулок.",
         "time": "⏰ 1-1.5 часа",
         "tips": "💡 Совет: Попробуйте драники в ресторане 'Троицкий'",
-        "next": 3,
+        "next": 4,
         "coordinates": "53.9083, 27.5547"
     },
     4: {
@@ -262,20 +265,23 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     """Запуск бота"""
-    # Получаем токен
     TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     
     if not TOKEN:
         logger.error("❌ Токен бота не найден в переменных окружения!")
-        logger.info("📝 Установите переменную окружения TELEGRAM_BOT_TOKEN")
         sys.exit(1)
     
     logger.info("✅ Токен найден")
     logger.info("🤖 Создаю приложение...")
     
     try:
-        # Создаем приложение
-        application = Application.builder().token(TOKEN).build()
+        # Создаем приложение с явными параметрами
+        application = (
+            Application.builder()
+            .token(TOKEN)
+            .concurrent_updates(True)  # Включаем поддержку конкурентных обновлений
+            .build()
+        )
         
         # Добавляем обработчики
         conv_handler = ConversationHandler(
@@ -289,6 +295,7 @@ def main():
                 ],
             },
             fallbacks=[CommandHandler('cancel', cancel)],
+            allow_reentry=True  # Разрешаем повторный вход в диалог
         )
         
         application.add_handler(conv_handler)
@@ -297,10 +304,11 @@ def main():
         logger.info("✅ Обработчики добавлены")
         logger.info("🚀 Запускаю polling...")
         
-        # Запускаем polling
+        # Запускаем polling с базовыми настройками
         application.run_polling(
             allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True
+            drop_pending_updates=True,
+            stop_signals=None  # Отключаем сигналы для совместимости
         )
         
     except Exception as e:
