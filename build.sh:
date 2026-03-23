@@ -1,0 +1,28 @@
+#!/bin/bash
+
+echo "📦 Установка Python 3.11..."
+
+# Скачиваем и устанавливаем Python 3.11
+wget https://www.python.org/ftp/python/3.11.11/Python-3.11.11.tgz
+tar -xf Python-3.11.11.tgz
+cd Python-3.11.11
+./configure --enable-optimizations --prefix=/opt/python311
+make -j$(nproc)
+make install
+cd ..
+
+# Используем новый Python
+export PATH=/opt/python311/bin:$PATH
+export PYTHONPATH=/opt/python311/lib/python3.11/site-packages
+
+# Проверяем версию
+python --version
+
+# Устанавливаем pip
+/opt/python311/bin/python -m ensurepip --upgrade
+/opt/python311/bin/python -m pip install --upgrade pip
+
+# Устанавливаем зависимости
+/opt/python311/bin/python -m pip install -r requirements.txt
+
+echo "✅ Установка завершена"
