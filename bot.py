@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 SELECTING_ACTION, SHOWING_POINT = range(2)
 
-# НОВЫЙ МАРШРУТ ПО МИНСКУ
+# МАРШРУТ ПО МИНСКУ
 ROUTE = {
     1: {
         "name": "🎨 Улица Октябрьская",
@@ -78,12 +78,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info(f"📨 Получена команда /start от пользователя {update.effective_user.id}")
     user_name = update.effective_user.first_name
     
-    welcome_text = (
-        f"🌟 Привет, {user_name}! 🌟\n\n"
-        f"Меня зовут Илья, я блогер ЧТОПОЧЕМ, рассказываю о ценах и интересных местах Минска! 🤗\n\n"
-        f"Я подготовил для Вас новый уникальный маршрут по самым интересным местам города.\n\n"
-        f"Готовы отправиться в путешествие? 🚀"
-    )
+    welcome_text = ( f"🌟 Привет, {user_name}! 🌟\n\n" f"Меня зовут Илья, я блогер ЧТОПОЧЕМ, рассказываю о ценах и интересных местах Минска! 🤗\n\n" f"Я подготовил для Вас новый уникальный маршрут по самым интересным местам города.\n\n" f"Готовы отправиться в путешествие? 🚀" )
     
     keyboard = [
         [InlineKeyboardButton("🗺️ Начать маршрут", callback_data="start_route")],
@@ -105,7 +100,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     if data == "start_route":
         context.user_data['current_point'] = 1
-        # Отправляем первую локацию новым сообщением
         await send_route_point(query.message.chat_id, context, query)
         return SHOWING_POINT
     
@@ -143,7 +137,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         current = context.user_data.get('current_point', 1)
         if ROUTE[current]['next']:
             context.user_data['current_point'] = ROUTE[current]['next']
-            # Отправляем следующую локацию новым сообщением
             await send_route_point(query.message.chat_id, context, query)
         else:
             await show_finish(query.message.chat_id, context, query)
@@ -156,7 +149,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             coords = ROUTE[current]['coordinates']
             map_url = f"https://www.google.com/maps/search/?api=1&query={coords}"
             
-            # Отправляем новое сообщение с картой
             await query.message.reply_text(
                 f"🗺️ *Как добраться:*\n\n"
                 f"[Открыть в Google Maps]({map_url})\n\n"
@@ -173,7 +165,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "Поделитесь впечатлениями в комментариях у блогера 📸\n\n"
             "Чтобы начать заново, нажмите /start"
         )
-        # Удаляем сообщение с кнопками, если нужно
         try:
             await query.message.delete()
         except:
@@ -197,7 +188,6 @@ async def send_route_point(chat_id, context: ContextTypes.DEFAULT_TYPE, query=No
         f"{point['tips']}\n"
     )
     
-    # Создаем кнопки
     keyboard = []
     
     if point['next']:
@@ -210,10 +200,8 @@ async def send_route_point(chat_id, context: ContextTypes.DEFAULT_TYPE, query=No
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Отправляем новое сообщение
     if query:
         await query.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
-        # Удаляем предыдущее сообщение с кнопками (опционально)
         try:
             await query.message.delete()
         except:
@@ -241,7 +229,6 @@ async def show_finish(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
     
     if query:
         await query.message.reply_text(finish_text, reply_markup=reply_markup, parse_mode='Markdown')
-        # Удаляем последнее сообщение с точкой
         try:
             await query.message.delete()
         except:
@@ -255,18 +242,13 @@ async def show_finish(chat_id, context: ContextTypes.DEFAULT_TYPE, query=None):
         )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Отмена маршрута"""
-    await update.message.reply_text(
-        "👋 Маршрут прерван. Если захотите продолжить, просто нажмите /start"
-    )
+    await update.message.reply_text("👋 Маршрут прерван. Для начала нажмите /start")
     return ConversationHandler.END
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик ошибок"""
     logger.error(f"❌ Ошибка: {context.error}", exc_info=True)
 
 async def run_bot():
-    """Запуск бота"""
     TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not TOKEN:
         logger.error("❌ Токен не найден!")
@@ -276,14 +258,22 @@ async def run_bot():
     
     application = Application.builder().token(TOKEN).build()
     
-    # Тестовый обработчик для проверки работы
+    # Добавляем обработчик команды start отдельно для теста
+    async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        logger.info("🔵 START HANDLER вызван")
+        await start(update, context)
+    
+    # Регистрируем обработчики
+    application.add_handler(CommandHandler("start", start_handler))
+    application.add_handler(CommandHandler("test", test_handler))
+    
     async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        logger.info(f"🔧 TEST: Получено сообщение: {update.message.text}")
-        await update.message.reply_text("✅ Бот работает! Это тестовое сообщение.")
+        logger.info("🔧 TEST: Получено сообщение")
+        await update.message.reply_text("✅ Бот работает!")
     
     application.add_handler(CommandHandler("test", test_handler))
     
-    # Основной ConversationHandler
+    # ConversationHandler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -295,6 +285,7 @@ async def run_bot():
             ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        allow_reentry=True
     )
     
     application.add_handler(conv_handler)
@@ -307,7 +298,6 @@ async def run_bot():
     await application.updater.start_polling()
     
     logger.info("✅ Бот работает! Ожидаю сообщения...")
-    logger.info("📝 Отправьте /test для проверки или /start для начала маршрута")
     
     try:
         while True:
